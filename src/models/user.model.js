@@ -55,7 +55,7 @@ userSchema.pre("save",async function(next){
     if(!this.isModified("password")) return next();
      //is modified will be true if password was created or updated means modification of the given argument is happening 
 
-    this.password=bcrypt.hash(this.password,10)
+    this.password=await bcrypt.hash(this.password,10)
     next()
 })  //we do not use arrow function because they do not have any references and here we need refrences from userSchema and all so we avoid to use arrow function
 
