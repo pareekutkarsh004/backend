@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 const registerUser=asyncHandler(async(req,res)=>{
    
         console.log("registerUser controller hit");
-        res.status(200).json({ success: true, message: "User registered!" });
+        // res.status(200).json({ success: true, message: "User registered!" });
      
       
    //get user details
@@ -19,7 +19,7 @@ const registerUser=asyncHandler(async(req,res)=>{
    //check for user creation 
    //return the response 
    const {fullName, email, username, password}=req.body
-   console.log("email: ",email);
+   console.log("fullName: ",fullName);
 
 //    if(fullName===""){
 //         throw new ApiError(400,"fullName is required")
@@ -30,12 +30,13 @@ const registerUser=asyncHandler(async(req,res)=>{
       if(
         [fullName,email,username,password].some((field)=>
                 field?.trim()===""
+                
 
         )){
                 throw new ApiError(400,"All Fiels are required")
         }
 
-        const existedUser=User.findOne(
+        const existedUser=await User.findOne(
                 {
                         $or:[ { username },{ email }]
                 }
@@ -45,7 +46,18 @@ const registerUser=asyncHandler(async(req,res)=>{
         }
 
         const avatarLocalPath=req.files?.avatar[0]?.path;
-        const coverImageLocalPath=req.files?.coverImage[0]?.path;
+        // const coverImageLocalPath=req.files?.coverImage[0]?.path;
+        //  let coverImageLocalPath
+        //  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
+        //         //now we have check that req.files is present and req.files.coverImage is
+        //         //a non empty array so no issues now 
+        //         coverImageLocalPath=req.files.coverImage[0].path
+        //  }
+        const coverImageLocalPath =
+  req.files && req.files.coverImage && req.files.coverImage.length > 0
+    ? req.files.coverImage[0].path
+    : "";
+
 
         if(!avatarLocalPath){
                 throw new ApiError(400,"Avatar file is required")
@@ -67,12 +79,11 @@ const registerUser=asyncHandler(async(req,res)=>{
                 password,
                 username:username.toLowerCase()
         })
-
         const createdUser=await User.findById(user._id).select(
                 "-password -refreshToken"
         )
 
-        if(createdUser){
+        if(!createdUser){
                 throw new ApiError(500,"Something went wrong while registering the user")
         }
 
