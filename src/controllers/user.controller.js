@@ -104,15 +104,17 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // Logout user
 const logoutUser = asyncHandler(async (req, res) => {
+  // console.log("reached logout function");
+  
   await User.findByIdAndUpdate(req.user._id, {
-    $unset: { refreshToken: 1 },
+    $unset: { refreshToken: 1 }, //this removes the field from the document
   });
 
   const options = {
     httpOnly: true,
     secure: true,
   };
-
+  
   return res
     .status(200)
     .clearCookie("accessToken", options)
@@ -122,8 +124,9 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 // Refresh access token
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-
+  // console.log("Reached refreshAccessToken");
+  const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+  
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized request");
   }
@@ -131,7 +134,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   try {
     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
     const user = await User.findById(decodedToken?._id);
-
+  
     if (!user || incomingRefreshToken !== user?.refreshToken) {
       throw new ApiError(401, "Refresh token expired or invalid");
     }
@@ -315,39 +318,38 @@ const getWatchHistory = asyncHandler(async(req,res)=>{
       }
     },
     {
-      $lookup:{
+      $lookup: {
         from: "videos",
-        localField :"watchHistory",
-        foreignField: "_id",
-        as : "watchHistory"
-      },
-      pipeline:[
-        {
-          $lookup:{
-            from: "users",
-            localField:"owner",
-            foreignField :"_id",
-            as: "owner",
-            pipeline:[
-              {
-                $project:{
-                  fullName:1,
-                  username:1,
-                  avatar:1
+        let: { videoIds: "$watchHistory" },
+        pipeline: [
+          { $match: { $expr: { $in: ["$_id", "$$videoIds"] } } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  }
                 }
-              }
-            ]
-          }
-        },
-        {
-          $addFields:{
-            owner:{
-              $first :"$owner"
+              ]
+            }
+          },
+          {
+            $addFields: {
+              owner: { $first: "$owner" }
             }
           }
-        }
-      ]
+        ],
+        as: "watchHistory"
+      }
     }
+    
   ])
 
   return res
